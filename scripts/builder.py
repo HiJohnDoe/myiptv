@@ -1,37 +1,45 @@
+import os
 import requests
 import re
 import json
-import os
 
-def collect_live():
-    with open('sources/live_sources.txt', 'r', encoding='utf-8') as f:
-        urls = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+def get_config_list(env_name, file_path):
+    # 优先从 GitHub Actions 环境变量读取
+    env_data = os.getenv(env_name)
+    if env_data:
+        return [line.strip() for line in env_data.split('\n') if line.strip() and not line.startswith('#')]
     
-    unique_channels = {}
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    # 如果没有环境变量，则读取本地 sources/ 目录下的文件
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return [line.strip() for line in f if line.strip() and not line.startswith('#')]
+    return []
 
-    for url in urls:
+def build():
+    # 1. 获取源列表
+    live_urls = get_config_list('LIVE_SOURCES_CONF', 'sources/live_sources.txt')
+    vod_urls = get_config_list('VOD_SOURCES_CONF', 'sources/vod_sources.txt')
+    base_url = os.getenv('BASE_URL', '.') # 获取 Pages 网址
+
+    # 2. 采集直播源 (逻辑不变)
+    unique_channels = {}
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    for url in live_urls:
         try:
-            print(f"正在采集直播源: {url}")
-            r = requests.get(url, headers=headers, timeout=15)
+            r = requests.get(url, headers=headers, timeout=10)
             matches = re.findall(r'#EXTINF:.*?,(.*?)\n(http[s]?://.*)', r.text)
             for name, link in matches:
-                clean_name = name.strip().replace(" ", "")
+                clean_name = name.strip()
                 if clean_name not in unique_channels:
                     unique_channels[clean_name] = link.strip()
         except: continue
 
-    # 导出给 iPhone 用的 JSON
+    # 3. 导出 raw_list.json
     raw_list = [{"name": n, "url": u} for n, u in unique_channels.items()]
     with open('raw_list.json', 'w', encoding='utf-8') as f:
         json.dump(raw_list, f, ensure_ascii=False)
-    return unique_channels
 
-def build_config():
-    collect_live()
-    with open('sources/vod_sources.txt', 'r', encoding='utf-8') as f:
-        vod_urls = [line.strip() for line in f if line.strip() and not line.startswith('#')]
-
+    # 4. 缝合点播接口并生成 config_raw.json
     config = {"spider": "", "sites": [], "lives": []}
     for vod_url in vod_urls:
         try:
@@ -40,11 +48,11 @@ def build_config():
             if "sites" in config: break
         except: continue
 
-    # 这里的 URL 需要在部署 Cloudflare Pages 后，修改为你的最终域名
+    # 使用环境变量中的 BASE_URL 拼接最终路径
     config["lives"].insert(0, {
         "name": "iPhone 优选源",
         "type": 0,
-        "url": "./final.m3u", 
+        "url": f"{base_url}/final.m3u", # 自动拼接完整地址
         "playerType": 1
     })
 
@@ -52,4 +60,4 @@ def build_config():
         json.dump(config, f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
-    build_config()
+    build()
