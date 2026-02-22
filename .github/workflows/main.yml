@@ -1,35 +1,28 @@
 name: IPTV-Builder
 on:
-  schedule:
-    - cron: '0 20 * * *'
+  schedule: [{cron: '0 20 * * *'}]
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
       - name: Set up Python
         uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-          
+        with: {python-version: '3.9'}
       - name: Install dependencies
         run: pip install requests
-        
       - name: Run Builder
-        # 这里是关键：将 Settings 里的变量映射给 Python 进程
         env:
           LIVE_SOURCES_CONF: ${{ vars.LIVE_SOURCES_CONF }}
           VOD_SOURCES_CONF: ${{ vars.VOD_SOURCES_CONF }}
           BASE_URL: ${{ vars.BASE_URL }}
+          CF_WORKER_URL: ${{ secrets.CF_WORKER_URL }}
         run: python scripts/builder.py
-        
       - name: Commit and Push
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Action"
-          git add raw_list.json config_raw.json
-          git commit -m "Update raw files via GitHub Variables" || exit 0
+          git add raw_list.json shortcut_cfg.json config_raw.json
+          git commit -m "Update" || exit 0
           git push
