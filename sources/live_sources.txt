@@ -1,0 +1,15 @@
+# --- 国内超清 ---
+https://live.fanmingming.com/tv/m3u/ipv6.m3u
+https://m3u.ibert.me/itv.m3u
+https://raw.githubusercontent.com/Guovin/TV/gd/output/result.m3u
+# --- 港澳台/海外 ---
+https://m3u.ibert.me/y_g.m3u
+https://raw.githubusercontent.com/YueChan/Live/main/IPTV.m3u
+https://raw.githubusercontent.com/ssili126/tv/main/itvlist.m3u
+https://raw.githubusercontent.com/joevess/IPTV/main/iptv.m3u
+# --- 全球聚合 ---
+https://mirror.ghproxy.com/https://raw.githubusercontent.com/v_v_v_v/v/main/itv.m3u
+https://raw.githubusercontent.com/YanG-1989/m3u/main/Gather.m3u
+https://iptv-org.github.io/iptv/countries/cn.m3u
+https://iptv-org.github.io/iptv/countries/hk.m3u
+https://iptv-org.github.io/iptv/countries/tw.m3u
