@@ -1,4 +1,4 @@
-Import os, requests, re, json
+import os, requests, re, json
 
 def build():
     # 从 GitHub Variables 读取
