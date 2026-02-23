@@ -1,28 +1,37 @@
-name: IPTV-builder
+name: IPTV Builder
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
+      # ✨ 新增这一步，安装 requests 库
+      - name: Install dependencies
+        run: pip install requests
+
       - name: Run Builder
         env:
           LIVE_SOURCES_CONF: ${{ vars.LIVE_SOURCES_CONF }}
           VOD_SOURCES_CONF: ${{ vars.VOD_SOURCES_CONF }}
         run: python scripts/builder.py
+
       - name: Inject Worker URL
         run: sed -i "s|{{CF_WORKER_URL}}|${{ secrets.CF_WORKER_URL }}|g" check.html
-      - name: Commit
+
+      - name: Commit changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add raw_list.json vod_config.json
-          git commit -m "update" || echo "none"
+          git commit -m "Update lists" || echo "No changes"
           git push
