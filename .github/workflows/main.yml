@@ -1,37 +1,52 @@
-name: IPTV Builder
+name: IPTV System Builder
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
+  schedule:
+    - cron: '0 22 * * *' # 每天北京时间早晨 6 点自动运行
+  workflow_dispatch: # 支持手动点击运行
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
+    # 授予 Action 写权限，确保能把生成的文件 push 回仓库
+    permissions:
+      contents: write
       
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      # ✨ 新增这一步，安装 requests 库
-      - name: Install dependencies
-        run: pip install requests
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: Run Builder
+      - name: Run Builder Script
         env:
           LIVE_SOURCES_CONF: ${{ vars.LIVE_SOURCES_CONF }}
           VOD_SOURCES_CONF: ${{ vars.VOD_SOURCES_CONF }}
         run: python scripts/builder.py
 
-      - name: Inject Worker URL
-        run: sed -i "s|{{CF_WORKER_URL}}|${{ secrets.CF_WORKER_URL }}|g" check.html
-
-      - name: Commit changes
+      - name: Inject Worker URL into HTML
+        # 使用 sed 将 Secrets 中的地址替换进 check.html 的占位符
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add raw_list.json vod_config.json
-          git commit -m "Update lists" || echo "No changes"
-          git push
+          sed -i "s|{{CF_WORKER_URL}}|${{ secrets.CF_WORKER_URL }}|g" check.html
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]@github.com"
+          git config --local user.name "github-actions[bot]"
+          git add raw_list.json vod_config.json check.html
+          # 只有在文件有变动时才提交，避免报错
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: 自动更新资源清单与注入 Worker 地址 [skip ci]"
+            git push
+          else
+            echo "没有文件变动，跳过提交。"
+          fi
