@@ -1,6 +1,7 @@
-name: IPTV-Builder
+name: IPTV-builder
 on:
-  schedule: [{cron: '0 20 * * *'}]
+  push:
+    branches: [ main ]
   workflow_dispatch:
 jobs:
   build:
@@ -9,20 +10,19 @@ jobs:
       - uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
-        with: {python-version: '3.9'}
-      - name: Install dependencies
-        run: pip install requests
+        with:
+          python-version: '3.10'
       - name: Run Builder
         env:
           LIVE_SOURCES_CONF: ${{ vars.LIVE_SOURCES_CONF }}
           VOD_SOURCES_CONF: ${{ vars.VOD_SOURCES_CONF }}
-          BASE_URL: ${{ vars.BASE_URL }}
-          CF_WORKER_URL: ${{ secrets.CF_WORKER_URL }}
         run: python scripts/builder.py
-      - name: Commit and Push
+      - name: Inject Worker URL
+        run: sed -i "s|{{CF_WORKER_URL}}|${{ secrets.CF_WORKER_URL }}|g" check.html
+      - name: Commit
         run: |
-          git config --local user.email "actions@github.com"
+          git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add raw_list.json shortcut_cfg.json config_raw.json
-          git commit -m "Update" || exit 0
+          git add raw_list.json vod_config.json
+          git commit -m "update" || echo "none"
           git push
