@@ -1,52 +1,33 @@
-name: IPTV System Builder
-on:
-  push:
-    branches: [ main ]
-  schedule:
-    - cron: '0 22 * * *' # 每天北京时间早晨 6 点自动运行
-  workflow_dispatch: # 支持手动点击运行
+Import os, requests, re, json
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    # 授予 Action 写权限，确保能把生成的文件 push 回仓库
-    permissions:
-      contents: write
-      
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+def build():
+    # 从 GitHub Variables 读取
+    live_urls = os.getenv('LIVE_SOURCES_CONF', '').split('\n')
+    vod_urls = os.getenv('VOD_SOURCES_CONF', '').split('\n')
+    
+    # 1. 直播源聚合 -> raw_list.json
+    unique_channels = {}
+    for url in [u.strip() for u in live_urls if u.strip()]:
+        try:
+            r = requests.get(url, timeout=10)
+            matches = re.findall(r'#EXTINF:.*?,(.*?)\n(http[s]?://.*)', r.text)
+            for name, link in matches:
+                if name.strip() not in unique_channels:
+                    unique_channels[name.strip()] = link.strip()
+        except: continue
+    with open('raw_list.json', 'w', encoding='utf-8') as f:
+        json.dump([{"name": n, "url": u} for n, u in unique_channels.items()], f, ensure_ascii=False)
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+    # 2. 点播源聚合 -> vod_config.json
+    vod_combined = {"sites": []}
+    for url in [u.strip() for u in vod_urls if u.strip()]:
+        try:
+            r = requests.get(url, timeout=10)
+            data = r.json()
+            if "sites" in data: vod_combined["sites"].extend(data["sites"])
+        except: continue
+    with open('vod_config.json', 'w', encoding='utf-8') as f:
+        json.dump(vod_combined, f, ensure_ascii=False)
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
-
-      - name: Run Builder Script
-        env:
-          LIVE_SOURCES_CONF: ${{ vars.LIVE_SOURCES_CONF }}
-          VOD_SOURCES_CONF: ${{ vars.VOD_SOURCES_CONF }}
-        run: python scripts/builder.py
-
-      - name: Inject Worker URL into HTML
-        # 使用 sed 将 Secrets 中的地址替换进 check.html 的占位符
-        run: |
-          sed -i "s|{{CF_WORKER_URL}}|${{ secrets.CF_WORKER_URL }}|g" check.html
-
-      - name: Commit and Push Changes
-        run: |
-          git config --local user.email "github-actions[bot]@github.com"
-          git config --local user.name "github-actions[bot]"
-          git add raw_list.json vod_config.json check.html
-          # 只有在文件有变动时才提交，避免报错
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: 自动更新资源清单与注入 Worker 地址 [skip ci]"
-            git push
-          else
-            echo "没有文件变动，跳过提交。"
-          fi
+if __name__ == "__main__":
+    build()
