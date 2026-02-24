@@ -4,51 +4,40 @@
     <title>IPTV 质检员</title>
     <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f2f2f7; color: #1c1c1e; }
+        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f2f2f7; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
         #bar-box { width: 100%; height: 10px; background: #eee; border-radius: 5px; margin: 20px 0; overflow: hidden; }
         #bar { width: 0%; height: 100%; background: #34c759; transition: 0.3s; }
-        #log { font-size: 11px; height: 150px; overflow-y: auto; background: #1c1e21; color: #34c759; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
-        
-        /* 按钮样式 */
-        .btn-primary { background: #007aff; color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-        .btn-primary:active { transform: scale(0.98); }
-        
-        /* 补传按钮样式 - 初始隐藏 */
-        #retry-btn { display: none; background: #34c759; margin-top: 10px; border: 2px solid #2ecc71; animation: pulse 2s infinite; }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(52, 199, 89, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
-        }
+        #log { font-size: 11px; height: 150px; overflow-y: auto; background: #1c1e21; color: #34c759; padding: 10px; border-radius: 8px; }
+        button { background: #007aff; color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        button:disabled { background: #ccc; }
+        /* 手动同步按钮样式 */
+        #retry-btn { background: #34c759; display: none; } 
     </style>
 </head>
 <body>
     <div class="card">
         <h3>📡 本地网络质检</h3>
         <div id="bar-box"><div id="bar"></div></div>
-        <button id="btn" class="btn-primary" onclick="startCheck()">开始质检</button>
-        <button id="retry-btn" class="btn-primary" onclick="uploadToWorker()">🔄 同步失败，点击重试</button>
-        <div id="log" style="margin-top:15px">>> 准备就绪</div>
+        <button id="btn" onclick="startCheck()">开始质检</button>
+        <button id="retry-btn" onclick="uploadToWorker()">🔄 同步失败？点击重试</button>
+        <div id="log">>> 准备就绪</div>
     </div>
-
     <script>
-        // GitHub Action 会自动替换这个地址，或者你手动填入
-        const CF_WORKER_URL = 'https://tv.ticastle.top'; 
-        
-        // 全局变量：保存检测好的内容，防止重复检测
-        let cachedM3uContent = "";
+        const CF_WORKER_URL = '{{CF_WORKER_URL}}'; 
+        // 全局变量，用于保存检测成功的 M3U 内容
+        let cachedM3u = "";
 
         async function startCheck() {
             const btn = document.getElementById('btn');
             const log = document.getElementById('log');
             const bar = document.getElementById('bar');
+            const retryBtn = document.getElementById('retry-btn');
             
             btn.disabled = true;
-            log.innerHTML = "<div>🚀 正在加载待测清单...</div>";
-            
+            retryBtn.style.display = "none";
+            log.innerHTML = "<div>🚀 开始检测...</div>";
+
             try {
                 const res = await fetch('./raw_list.json');
                 const channels = await res.json();
@@ -59,11 +48,11 @@
                     const ch = channels[i];
                     try {
                         const controller = new AbortController();
-                        // 2秒超时，提高检测效率
-                        const timeoutId = setTimeout(() => controller.abort(), 2000);
+                        // 依然保留 2000ms 超时，这是你原始代码的逻辑
+                        setTimeout(() => controller.abort(), 2000);
                         
-                        await fetch(ch.url, { mode: 'no-cors', signal: controller.signal });
-                        clearTimeout(timeoutId);
+                        // 使用你原始的请求逻辑：不做 mode 设置，不做 headers 设置
+                        await fetch(ch.url, { signal: controller.signal });
                         
                         m3u += `#EXTINF:-1, ${ch.name}\n${ch.url}\n`;
                         ok++;
@@ -71,54 +60,52 @@
                     } catch (e) {
                         log.innerHTML += `<div style="color:#ff3b30">❌ ${ch.name}</div>`;
                     }
-                    
                     bar.style.width = `${((i+1)/channels.length)*100}%`;
                     log.scrollTop = log.scrollHeight;
                 }
 
-                // 保存到全局变量
-                cachedM3uContent = m3u;
-                log.innerHTML += `<div style="color:#34c759; font-weight:bold;">🎉 检测完成！可用: ${ok}</div>`;
+                // 检测结束后，将结果存入全局变量
+                cachedM3u = m3u;
+                log.innerHTML += `<div>🎉 检测完成！可用: ${ok}</div>`;
                 
-                // 执行自动上传
+                // 触发自动上传
                 await uploadToWorker();
 
             } catch (err) { 
-                log.innerHTML += `<div style="color:#ff3b30">错误: ${err.message}</div>`; 
+                log.innerHTML += `<div style="color:red">错误: ${err.message}</div>`; 
                 btn.disabled = false;
             }
         }
 
+        // 提取出来的上传逻辑
         async function uploadToWorker() {
             const log = document.getElementById('log');
             const retryBtn = document.getElementById('retry-btn');
             
-            if (!cachedM3uContent) return;
+            if (!cachedM3u) return;
 
             log.innerHTML += `<div>☁️ 正在同步至云端 KV...</div>`;
             log.scrollTop = log.scrollHeight;
-            retryBtn.style.display = "none";
 
             try {
-                // 如果地址包含 {{...}} 说明 Action 注入失效，尝试识别当前环境
-                const finalUrl = CF_WORKER_URL.includes('{{') ? 'https://tv.ticastle.top' : CF_WORKER_URL;
+                // 自动处理注入失败的情况
+                const targetUrl = CF_WORKER_URL.includes('{{') ? 'https://tv.ticastle.top' : CF_WORKER_URL;
 
-                const response = await fetch(finalUrl, { 
+                const response = await fetch(targetUrl, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ m3u_content: cachedM3uContent }) 
+                    body: JSON.stringify({ m3u_content: cachedM3u }) 
                 });
 
                 if (response.ok) {
-                    log.innerHTML += `<div style="color:#34c759; font-weight:bold;">✅ 同步成功！数据已入库。</div>`;
+                    log.innerHTML += `<div style="color:#34c759">🎉 同步完成！数据已入库</div>`;
                     retryBtn.style.display = "none";
                 } else {
-                    throw new Error(`服务器响应错误: ${response.status}`);
+                    throw new Error('Worker 响应失败');
                 }
             } catch (err) {
-                log.innerHTML += `<div style="color:#ff3b30; font-weight:bold;">❌ 同步失败: ${err.message}</div>`;
-                log.innerHTML += `<div>⚠️ 请检查 Worker 绑定或证书，然后点击上方绿色按钮重试。</div>`;
-                retryBtn.style.display = "block"; // 显示重试按钮
+                log.innerHTML += `<div style="color:#ff3b30">❌ 同步失败，点击绿色按钮重试</div>`;
+                retryBtn.style.display = "block";
             }
             log.scrollTop = log.scrollHeight;
         }
@@ -127,8 +114,7 @@
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('auto') === 'true') {
-                document.getElementById('log').innerHTML += "<div>🤖 检测到自动化指令...</div>";
-                setTimeout(startCheck, 1500);
+                setTimeout(startCheck, 2000);
             }
         };
     </script>
