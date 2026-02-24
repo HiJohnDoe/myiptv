@@ -16,10 +16,10 @@ def build():
                 clean_name = name.strip()
                 clean_link = link.strip()
                 
-                # ✨ 核心兼容性优化：将 https 强制降级为 http
-                # 解决电视端、盒子端常见的 SSL 证书过期或未知机构导致的解析失败
-                if clean_link.startswith("https://"):
-                    clean_link = clean_link.replace("https://", "http://", 1)
+                # # ✨ 核心兼容性优化：将 https 强制降级为 http
+                # # 解决电视端、盒子端常见的 SSL 证书过期或未知机构导致的解析失败
+                # if clean_link.startswith("https://"):
+                #     clean_link = clean_link.replace("https://", "http://", 1)
                 
                 # 去重：如果频道名已存在则跳过，保证列表纯净
                 if clean_name not in unique_channels:
