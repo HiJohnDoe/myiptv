@@ -48,10 +48,7 @@
                     const ch = channels[i];
                     try {
                         const controller = new AbortController();
-                        // 依然保留 2000ms 超时，这是你原始代码的逻辑
                         setTimeout(() => controller.abort(), 2000);
-                        
-                        // 使用你原始的请求逻辑：不做 mode 设置，不做 headers 设置
                         await fetch(ch.url, { signal: controller.signal });
                         
                         m3u += `#EXTINF:-1, ${ch.name}\n${ch.url}\n`;
