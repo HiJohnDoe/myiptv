@@ -52,7 +52,7 @@
                 }
 
                 log.innerHTML += `<div>🚀 同步至云端 KV...</div>`;
-                await fetch(CF_WORKER_URL, { method: 'POST', body: JSON.stringify({ m3u_content: m3u }) });
+                await fetch(CF_WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ m3u_content: m3u }) });
                 log.innerHTML += `<div>🎉 同步完成！可用频道: ${ok}</div>`;
             } catch (err) { log.innerHTML += `<div style="color:red">错误: ${err.message}</div>`; }
         }
