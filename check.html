@@ -1,70 +1,70 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>IPTV 质检员</title>
-    <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f2f2f7; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        #bar-box { width: 100%; height: 10px; background: #eee; border-radius: 5px; margin: 20px 0; overflow: hidden; }
-        #bar { width: 0%; height: 100%; background: #34c759; transition: 0.3s; }
-        #log { font-size: 11px; height: 150px; overflow-y: auto; background: #1c1e21; color: #34c759; padding: 10px; border-radius: 8px; }
-        button { background: #007aff; color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; }
-        button:disabled { background: #ccc; }
-    </style>
+    <title>IPTV 质检员</title>
+    <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f2f2f7; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        #bar-box { width: 100%; height: 10px; background: #eee; border-radius: 5px; margin: 20px 0; overflow: hidden; }
+        #bar { width: 0%; height: 100%; background: #34c759; transition: 0.3s; }
+        #log { font-size: 11px; height: 150px; overflow-y: auto; background: #1c1e21; color: #34c759; padding: 10px; border-radius: 8px; }
+        button { background: #007aff; color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; }
+        button:disabled { background: #ccc; }
+    </style>
 </head>
 <body>
-    <div class="card">
-        <h3>📡 本地网络质检</h3>
-        <div id="bar-box"><div id="bar"></div></div>
-        <button id="btn" onclick="startCheck()">开始质检</button>
-        <div id="log">>> 准备就绪</div>
-    </div>
-    <script>
-        const CF_WORKER_URL = 'https://tv.ticastle.top'; 
+    <div class="card">
+        <h3>📡 本地网络质检</h3>
+        <div id="bar-box"><div id="bar"></div></div>
+        <button id="btn" onclick="startCheck()">开始质检</button>
+        <div id="log">>> 准备就绪</div>
+    </div>
+    <script>
+        const CF_WORKER_URL = 'https://tv.ticastle.top'; 
 
-        async function startCheck() {
-            const btn = document.getElementById('btn');
-            const log = document.getElementById('log');
-            const bar = document.getElementById('bar');
-            btn.disabled = true;
-            
-            try {
-                const res = await fetch('./raw_list.json');
-                const channels = await res.json();
-                let m3u = "#EXTM3U\n";
-                let ok = 0;
+        async function startCheck() {
+            const btn = document.getElementById('btn');
+            const log = document.getElementById('log');
+            const bar = document.getElementById('bar');
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('./raw_list.json');
+                const channels = await res.json();
+                let m3u = "#EXTM3U\n";
+                let ok = 0;
 
-                for (let i = 0; i < channels.length; i++) {
-                    const ch = channels[i];
-                    try {
-                        const controller = new AbortController();
-                        setTimeout(() => controller.abort(), 2000);
-                        await fetch(ch.url, { mode: 'no-cors', signal: controller.signal });
-                        m3u += `#EXTINF:-1, ${ch.name}\n${ch.url}\n`;
-                        ok++;
-                        log.innerHTML += `<div>✅ ${ch.name}</div>`;
-                    } catch (e) {
-                        log.innerHTML += `<div style="color:#ff3b30">❌ ${ch.name}</div>`;
-                    }
-                    bar.style.width = `${((i+1)/channels.length)*100}%`;
-                    log.scrollTop = log.scrollHeight;
-                }
+                for (let i = 0; i < channels.length; i++) {
+                    const ch = channels[i];
+                    try {
+                        const controller = new AbortController();
+                        setTimeout(() => controller.abort(), 2000);
+                        await fetch(ch.url, { mode: 'no-cors', signal: controller.signal });
+                        m3u += `#EXTINF:-1, ${ch.name}\n${ch.url}\n`;
+                        ok++;
+                        log.innerHTML += `<div>✅ ${ch.name}</div>`;
+                    } catch (e) {
+                        log.innerHTML += `<div style="color:#ff3b30">❌ ${ch.name}</div>`;
+                    }
+                    bar.style.width = `${((i+1)/channels.length)*100}%`;
+                    log.scrollTop = log.scrollHeight;
+                }
 
-                log.innerHTML += `<div>🚀 同步至云端 KV...</div>`;
-                await fetch(CF_WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ m3u_content: m3u }) });
-                log.innerHTML += `<div>🎉 同步完成！可用频道: ${ok}</div>`;
-            } catch (err) { log.innerHTML += `<div style="color:red">错误: ${err.message}</div>`; }
-        }
+                log.innerHTML += `<div>🚀 同步至云端 KV...</div>`;
+                await fetch(CF_WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ m3u_content: m3u }) });
+                log.innerHTML += `<div>🎉 同步完成！可用频道: ${ok}</div>`;
+            } catch (err) { log.innerHTML += `<div style="color:red">错误: ${err.message}</div>`; }
+        }
 
-        // 自动化识别逻辑
-        window.onload = function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('auto') === 'true') {
-                document.getElementById('log').innerHTML += "<div>🤖 检测到自动化指令，即将开始...</div>";
-                setTimeout(startCheck, 2000);
-            }
-        };
-    </script>
+        // 自动化识别逻辑
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('auto') === 'true') {
+                document.getElementById('log').innerHTML += "<div>🤖 检测到自动化指令，即将开始...</div>";
+                setTimeout(startCheck, 2000);
+            }
+        };
+    </script>
 </body>
 </html>
