@@ -1,2 +1,5 @@
-http://fan.9527.link/tv
-https://mirror.ghproxy.com/https://raw.githubusercontent.com/yydsys/yydsys/main/yydsys.json
+http://饭太硬.com/tv
+http://肥猫.com/tv
+https://git.acwing.com/leevi/tvbox-config/-/raw/master/js.json
+http://tv.pccsw.cn/tv
+https://raw.githubusercontent.com/gaotianliuyun/gao/master/js.json
